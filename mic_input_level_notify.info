@@ -1,0 +1,53 @@
+#include <BleServer.h>
+#include <BleUtils.h>
+#include <BleCharacteristic.h>
+
+// BLEサーバーとサービス、キャラクタリスティックのUUID
+#define SERVICE_UUID "12345678-1234-5678-1234-56789abcdef0"
+#define CHARACTERISTIC_UUID "12345678-1234-5678-1234-56789abcdef1"
+
+BleServer *pServer;
+BleCharacteristic *pCharacteristic;
+bool deviceConnected = false;
+
+// コールバッククラスの定義
+class MyServerCallbacks: public BleServerCallbacks {
+    void onConnect(BleServer* pServer) {
+        deviceConnected = true;
+    }
+
+    void onDisconnect(BleServer* pServer) {
+        deviceConnected = false;
+    }
+};
+
+void setup() {
+    Serial.begin(115200);
+    BleDevice::init("ESP32_BLE");
+    
+    pServer = BleDevice::createServer();
+    pServer->setCallbacks(new MyServerCallbacks());
+    
+    BleService *pService = pServer->createService(SERVICE_UUID);
+    pCharacteristic = pService->createCharacteristic(
+        CHARACTERISTIC_UUID,
+        BLECharacteristic::PROPERTY_READ |
+        BLECharacteristic::PROPERTY_WRITE
+    );
+
+    pCharacteristic->setValue("0"); // 初期値を設定
+    pService->start();
+    BleAdvertising *pAdvertising = pServer->getAdvertising();
+    pAdvertising->start();
+    Serial.println("Waiting for a client connection...");
+}
+
+void loop() {
+    // ここで数値を更新するロジックを実装します
+    if (deviceConnected) {
+        // 例えば、数値を50に設定する
+        pCharacteristic->setValue("50");
+        pCharacteristic->notify(); // クライアントに通知
+        delay(1000); // 1秒ごとに送信
+    }
+}
